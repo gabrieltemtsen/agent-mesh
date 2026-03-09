@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Activity, Bot, CheckCircle, ChevronRight, Circle, ClipboardList,
-  Coins, ExternalLink, Plus, RefreshCw, Wifi, Zap,
+  Coins, ExternalLink, Plus, RefreshCw, Wifi, Zap, Play, Square, Terminal,
 } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -22,10 +22,22 @@ interface TxRecord {
   id: string; type: string; taskId: string; agentId: string;
   amount: number; timestamp: string; onChain?: boolean; transactionId?: string;
 }
+interface WorkerInfo {
+  agentId: string; agentName: string; agentStatus: string; capabilities: string[];
+  running: boolean; tasksExecuted: number; lastPollAt: string | null;
+  lastTaskAt: string | null; currentTaskId: string | null;
+  reputation: number; totalEarned: number;
+}
+interface WorkerLogEntry {
+  timestamp: string; agentId: string; agentName: string;
+  level: "info" | "success" | "error" | "warn"; message: string; taskId?: string;
+}
 interface DashboardData {
   stats: { totalAgents: number; activeAgents: number; openTasks: number; completedTasks: number; totalHbarTransacted: number };
   agents: Agent[]; tasks: Task[]; transactions: TxRecord[];
   topicId: string | null; network: string;
+  workerStatus?: { globalRunning: boolean; workerCount: number; workers: WorkerInfo[] };
+  workerLog?: WorkerLogEntry[];
 }
 interface HcsEntry { time: string; type: string; content: string; }
 
@@ -199,6 +211,7 @@ export default function Dashboard() {
   const [balance, setBalance] = useState<{ accountId: string; balance: number } | null>(null);
   const [hcsMsgs, setHcsMsgs] = useState<HcsEntry[]>([]);
   const [simRunning, setSimRunning] = useState(false);
+  const [workersRunning, setWorkersRunning] = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: "default" | "ok" | "err" }>({ msg: "", type: "default" });
   const [log, setLog] = useState<{ msg: string; type: string }[]>([
     { msg: "AgentMesh dashboard initializing on Hedera Testnet...", type: "" },
@@ -243,9 +256,34 @@ export default function Dashboard() {
   useEffect(() => {
     refresh();
     addLog("Dashboard ready. Agents standing by.", "ok");
-    const id = setInterval(refresh, 15000);
+    const id = setInterval(refresh, 8000); // faster refresh for worker updates
     return () => clearInterval(id);
   }, [refresh, addLog]);
+
+  // Update worker running state from dashboard data
+  useEffect(() => {
+    if (data?.workerStatus) {
+      setWorkersRunning(data.workerStatus.globalRunning);
+    }
+  }, [data?.workerStatus]);
+
+  // ── Start/Stop Workers ──
+  const toggleWorkers = async () => {
+    try {
+      const action = workersRunning ? "stop" : "start";
+      const res = await apiFetch<{ ok: boolean; message: string; started?: number }>("/api/workers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      addLog(`🤖 Workers ${action}ed: ${res.message}`, "ok");
+      showToast(res.message, "ok");
+      setWorkersRunning(action === "start");
+      await refresh();
+    } catch (e: unknown) {
+      showToast((e as Error).message, "err");
+    }
+  };
 
   // ── Simulation ──
   const runSim = async () => {
@@ -386,7 +424,8 @@ export default function Dashboard() {
           {[
             { label: "+ Register Agent", icon: Bot, onClick: () => setShowRegister(true), cls: "border-sky-500/50 text-sky-400 hover:bg-sky-900/30" },
             { label: "+ Post Task", icon: ClipboardList, onClick: () => setShowTask(true), cls: "border-sky-500/50 text-sky-400 hover:bg-sky-900/30" },
-            { label: simRunning ? "Running..." : "⚡ Run Simulation", icon: Zap, onClick: runSim, cls: "border-green-500/50 text-green-400 hover:bg-green-900/30", disabled: simRunning },
+            { label: workersRunning ? "⏹ Stop Workers" : "▶ Start Workers", icon: workersRunning ? Square : Play, onClick: toggleWorkers, cls: workersRunning ? "border-red-500/50 text-red-400 hover:bg-red-900/30" : "border-green-500/50 text-green-400 hover:bg-green-900/30" },
+            { label: simRunning ? "Running..." : "⚡ Sim Task", icon: Zap, onClick: runSim, cls: "border-yellow-500/50 text-yellow-400 hover:bg-yellow-900/30", disabled: simRunning },
             { label: "↻ Refresh", icon: RefreshCw, onClick: refresh, cls: "border-sky-500/50 text-sky-400 hover:bg-sky-900/30" },
             { label: "HashScan", icon: ExternalLink, onClick: () => topicId && window.open(`https://hashscan.io/testnet/topic/${topicId}`, "_blank"), cls: "border-orange-500/50 text-orange-400 hover:bg-orange-900/30" },
             { label: "Mirror Node", icon: Activity, onClick: () => topicId && window.open(`https://testnet.mirrornode.hedera.com/api/v1/topics/${topicId}/messages?limit=10`, "_blank"), cls: "border-sky-500/50 text-sky-400 hover:bg-sky-900/30" },
@@ -455,17 +494,116 @@ export default function Dashboard() {
         </div>
 
         {/* ── Tx Ledger ── */}
-        <div className="bg-[#0c1220] border border-[#1b3358] rounded-lg overflow-hidden">
+        <div className="bg-[#0c1220] border border-[#1b3358] rounded-lg overflow-hidden mb-5">
           <div className="bg-[#091426] border-b border-[#1b3358] px-4 py-2.5 flex justify-between items-center">
             <h3 className="text-sky-400 text-[12px] tracking-widest flex items-center gap-2"><Coins className="w-3.5 h-3.5" /> HBAR PAYMENT LEDGER</h3>
             <span className="text-[11px] text-slate-500">On-chain micro-payments between agents</span>
           </div>
           <div className="max-h-48 overflow-y-auto">
             {!data?.transactions.length
-              ? <div className="px-4 py-4 text-[11px] text-slate-500">No payments yet — complete a task to trigger HBAR settlement.</div>
+              ? <div className="px-4 py-4 text-[11px] text-slate-500">No payments yet — start workers to trigger autonomous HBAR settlement.</div>
               : data.transactions.map((tx) => <TxRow key={tx.id} tx={tx} />)}
           </div>
         </div>
+
+        {/* ── Worker Runtime ── */}
+        <div className="grid grid-cols-2 gap-5 mb-5">
+          {/* Worker Status */}
+          <div className="bg-[#0c1220] border border-[#1b3358] rounded-lg overflow-hidden">
+            <div className="bg-[#091426] border-b border-[#1b3358] px-4 py-2.5 flex justify-between items-center">
+              <h3 className="text-sky-400 text-[12px] tracking-widest flex items-center gap-2">
+                <Bot className="w-3.5 h-3.5" /> OPENCLAW WORKER STATUS
+              </h3>
+              <span className={`text-[11px] px-2 py-0.5 rounded border ${workersRunning ? "border-green-600 text-green-400 bg-green-950" : "border-slate-600 text-slate-500"}`}>
+                {workersRunning ? "● RUNNING" : "○ STOPPED"}
+              </span>
+            </div>
+            <div className="max-h-64 overflow-y-auto">
+              {!data?.workerStatus?.workers.length
+                ? <div className="px-4 py-4 text-[11px] text-slate-500">Click "Start Workers" to activate autonomous agents.</div>
+                : data.workerStatus.workers.map((w) => (
+                  <div key={w.agentId} className="px-4 py-3 border-b border-[#0a1525] last:border-0">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm text-slate-200">{w.agentName}</span>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full border font-bold ${
+                        w.agentStatus === "busy" ? "border-orange-700 text-orange-400 bg-orange-950"
+                          : w.running ? "border-green-700 text-green-400 bg-green-950"
+                          : "border-slate-700 text-slate-500"
+                      }`}>
+                        {w.agentStatus === "busy" ? "⚙ EXECUTING" : w.running ? "● POLLING" : "○ IDLE"}
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-slate-500 flex flex-wrap gap-3">
+                      <span className="text-cyan-600">⚙ {w.capabilities.join(", ")}</span>
+                      <span>Tasks: <span className="text-green-400">{w.tasksExecuted}</span></span>
+                      <span>Earned: <span className="text-yellow-400">{w.totalEarned} ℏ</span></span>
+                      <span>Rep: <span className="text-purple-400">{w.reputation}</span></span>
+                    </div>
+                    {w.currentTaskId && (
+                      <div className="text-[10px] text-orange-400 mt-1 animate-pulse">
+                        ⚙ Working on task {w.currentTaskId.slice(0,12)}...
+                      </div>
+                    )}
+                    {w.lastTaskAt && (
+                      <div className="text-[10px] text-slate-600 mt-0.5">
+                        Last task: {new Date(w.lastTaskAt).toLocaleTimeString()}
+                      </div>
+                    )}
+                  </div>
+                ))}
+            </div>
+          </div>
+
+          {/* Worker Log */}
+          <div className="bg-[#0c1220] border border-[#1b3358] rounded-lg overflow-hidden">
+            <div className="bg-[#091426] border-b border-[#1b3358] px-4 py-2.5 flex justify-between items-center">
+              <h3 className="text-sky-400 text-[12px] tracking-widest flex items-center gap-2">
+                <Terminal className="w-3.5 h-3.5" /> AGENT RUNTIME LOG
+              </h3>
+              <span className="text-[11px] text-slate-500">Live autonomous execution feed</span>
+            </div>
+            <div className="max-h-64 overflow-y-auto font-mono">
+              {!data?.workerLog?.length
+                ? <div className="px-4 py-4 text-[11px] text-slate-500">No activity yet — start workers to see autonomous execution.</div>
+                : data.workerLog.map((l, i) => (
+                  <div key={i} className={`px-4 py-1.5 border-b border-[#0a1525] last:border-0 text-[11px] ${
+                    l.level === "success" ? "text-green-400"
+                      : l.level === "error" ? "text-red-400"
+                      : l.level === "warn" ? "text-yellow-400"
+                      : "text-slate-400"
+                  }`}>
+                    <span className="text-slate-600 mr-2">{new Date(l.timestamp).toLocaleTimeString()}</span>
+                    <span className="text-sky-600 mr-2">[{l.agentName}]</span>
+                    {l.message}
+                  </div>
+                ))}
+            </div>
+          </div>
+        </div>
+
+        {/* ── Task Results (completed work by AI agents) ── */}
+        {data?.tasks.some(t => t.status === "completed" && t.result) && (
+          <div className="bg-[#0c1220] border border-[#1b3358] rounded-lg overflow-hidden mb-5">
+            <div className="bg-[#091426] border-b border-[#1b3358] px-4 py-2.5">
+              <h3 className="text-sky-400 text-[12px] tracking-widest flex items-center gap-2">
+                <CheckCircle className="w-3.5 h-3.5" /> AI AGENT DELIVERABLES — GEMINI OUTPUT
+              </h3>
+            </div>
+            <div className="max-h-64 overflow-y-auto">
+              {data.tasks.filter(t => t.status === "completed" && t.result).map(t => (
+                <div key={t.id} className="px-4 py-3 border-b border-[#0a1525] last:border-0">
+                  <div className="flex justify-between items-start mb-2">
+                    <span className="text-sm text-slate-200">{t.title}</span>
+                    <span className="text-[11px] text-green-400 ml-4 flex-shrink-0">✓ {t.reward} ℏ paid</span>
+                  </div>
+                  <pre className="text-[11px] text-slate-500 whitespace-pre-wrap break-words max-h-32 overflow-y-auto bg-[#060d1a] rounded p-2 border border-[#0d1a2e]">
+                    {t.result?.slice(0, 400)}{(t.result?.length ?? 0) > 400 ? "\n... [truncated]" : ""}
+                  </pre>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
       </div>
 
