@@ -1,0 +1,48 @@
+@import "tailwindcss";
+
+:root {
+  --font-mono: "JetBrains Mono", "Courier New", monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #1b3358;
+  border-radius: 2px;
+}
+
+/* Pulse animation for live dot */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.2; }
+}
+.animate-pulse-dot {
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+/* Glow animation for stats */
+@keyframes glow {
+  0%, 100% { text-shadow: 0 0 8px rgba(41,182,246,0.5); }
+  50% { text-shadow: 0 0 18px rgba(41,182,246,0.9); }
+}
+.animate-glow {
+  animation: glow 3s ease-in-out infinite;
+}
+
+/* Slide-in for toast */
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-slide-up {
+  animation: slideUp 0.2s ease-out;
+}
