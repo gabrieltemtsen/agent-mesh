@@ -4,6 +4,7 @@
  */
 
 import { v4 as uuidv4 } from "uuid";
+import crypto from "crypto";
 
 export type AgentType = "worker" | "broker";
 export type AgentStatus = "idle" | "busy" | "offline";
@@ -35,6 +36,7 @@ export interface Task {
   claimedBy: string | null;
   completedAt: string | null;
   result?: string;
+  resultHash?: string;
   createdAt: string;
 }
 
@@ -120,6 +122,7 @@ export function completeTask(
   task.status = "completed";
   task.completedAt = new Date().toISOString();
   task.result = result;
+  task.resultHash = crypto.createHash("sha256").update(String(result ?? "")).digest("hex");
   agent.status = "idle";
   agent.tasksCompleted += 1;
   agent.totalEarned += task.reward;

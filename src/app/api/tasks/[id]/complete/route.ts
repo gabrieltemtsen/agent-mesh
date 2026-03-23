@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { completeTask, getTask, getAgent, seedIfNeeded } from "@/lib/registry";
 import { payAgent, postHcsMessage } from "@/lib/hedera";
+import crypto from "crypto";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -37,19 +38,54 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     if (!completion) return NextResponse.json({ error: "Cannot complete task" }, { status: 400 });
 
+    // ── On-chain attestation (HCS) ───────────────────────────────────────────
     const topicId = process.env.HEDERA_TOPIC_ID;
+    const network = process.env.HEDERA_NETWORK ?? "testnet";
+    const resultHash = crypto.createHash("sha256").update(String(result ?? "")).digest("hex");
+
     if (topicId) {
+      // Standard completion event
       postHcsMessage(topicId, {
         type: "TASK_COMPLETE",
         taskId,
         agentId,
+        agentAccountId: agent.accountId,
         reward: task.reward,
         onChain: !!paymentResult,
+        paymentTxId: paymentResult?.transactionId ?? null,
         timestamp: new Date().toISOString(),
+      }).catch(() => {});
+
+      // Proof / receipt attestation for trust + verification
+      postHcsMessage(topicId, {
+        type: "TASK_PROOF",
+        taskId,
+        agentId,
+        agentAccountId: agent.accountId,
+        capability: task.capability,
+        reward: task.reward,
+        resultHash,
+        paymentTxId: paymentResult?.transactionId ?? null,
+        createdAt: task.createdAt,
+        completedAt: new Date().toISOString(),
       }).catch(() => {});
     }
 
-    return NextResponse.json({ ...completion, paymentResult });
+    const attestation = {
+      topicId: topicId ?? null,
+      network,
+      type: "TASK_PROOF",
+      taskId,
+      agentId,
+      resultHash,
+      paymentTxId: paymentResult?.transactionId ?? null,
+      mirrorNodeUrl: topicId
+        ? `https://testnet.mirrornode.hedera.com/api/v1/topics/${topicId}/messages?limit=25`
+        : null,
+      hashscanTopicUrl: topicId ? `https://hashscan.io/${network}/topic/${topicId}` : null,
+    };
+
+    return NextResponse.json({ ...completion, paymentResult, attestation });
   } catch (e: unknown) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500 });
   }

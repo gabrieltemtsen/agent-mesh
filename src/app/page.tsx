@@ -16,7 +16,7 @@ interface Task {
   id: string; title: string; description: string; capability: string;
   reward: number; requesterId: string; topicId: string | null;
   status: string; claimedBy: string | null; completedAt: string | null;
-  result?: string; createdAt: string; hcsStatus?: string;
+  result?: string; resultHash?: string; createdAt: string; hcsStatus?: string;
 }
 interface TxRecord {
   id: string; type: string; taskId: string; agentId: string;
@@ -671,8 +671,15 @@ export default function Dashboard() {
             <div className="max-h-64 overflow-y-auto">
               {data.tasks.filter(t => t.status === "completed" && t.result).map(t => (
                 <div key={t.id} className="px-4 py-3 border-b border-[#0a1525] last:border-0">
-                  <div className="flex justify-between items-start mb-2">
-                    <span className="text-sm text-slate-200">{t.title}</span>
+                  <div className="flex justify-between items-start mb-2 gap-3">
+                    <div>
+                      <span className="text-sm text-slate-200">{t.title}</span>
+                      {t.resultHash && (
+                        <div className="mt-1 text-[10px] text-slate-600 font-mono">
+                          HCS proof hash: <span className="text-sky-500">{t.resultHash.slice(0, 16)}…</span>
+                        </div>
+                      )}
+                    </div>
                     <span className="text-[11px] text-green-400 ml-4 flex-shrink-0">✓ {t.reward} ℏ paid</span>
                   </div>
                   <pre className="text-[11px] text-slate-500 whitespace-pre-wrap break-words max-h-32 overflow-y-auto bg-[#060d1a] rounded p-2 border border-[#0d1a2e]">
