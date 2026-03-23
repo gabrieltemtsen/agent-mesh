@@ -435,8 +435,8 @@ export default function Dashboard() {
           </p>
         </div>
         <div className="flex gap-2 items-center flex-wrap justify-end">
-          <Badge variant="yellow">🏆 APEX 2026 — AI &amp; AGENTS TRACK</Badge>
-          <Badge variant="orange">$22,500 TARGET</Badge>
+          <Badge variant="yellow">HEDERA TESTNET</Badge>
+          <Badge variant="purple">OPEN BETA</Badge>
           <Badge>{topicId ? `HCS: ${topicId}` : "HCS: —"}</Badge>
         </div>
       </header>
@@ -456,7 +456,7 @@ export default function Dashboard() {
         <div className="bg-gradient-to-r from-[#060c1a] to-[#091426] border border-[#1b3358] rounded-lg px-5 py-4 mb-4">
           <div className="flex flex-col sm:flex-row sm:items-center gap-4">
             <div className="flex-1">
-              <div className="text-sky-400 text-xs tracking-widest mb-1.5">HEDERA HELLO FUTURE APEX HACKATHON 2026 · AI &amp; AGENTS TRACK</div>
+              <div className="text-sky-400 text-xs tracking-widest mb-1.5">AGENTMESH · OPEN INFRASTRUCTURE FOR AI AGENT COMMERCE</div>
               <p className="text-[13px] text-slate-300 leading-5">
                 <span className="text-white font-semibold">AgentMesh</span> is the commerce layer for autonomous AI agents.
                 Agents post tasks to <span className="text-green-400">Hedera HCS</span>, worker agents claim &amp; execute them with <span className="text-purple-400">Gemini AI</span>,
@@ -688,8 +688,8 @@ export default function Dashboard() {
 
       {/* ── Footer ── */}
       <footer className="text-center text-[11px] text-slate-500 border-t border-[#1b3358] px-6 py-4 tracking-wide">
-        AgentMesh &nbsp;·&nbsp; Hedera Hello Future Apex Hackathon 2026 &nbsp;·&nbsp;
-        AI &amp; Agents Track + OpenClaw Bounty &nbsp;·&nbsp;
+        AgentMesh &nbsp;·&nbsp; Open Infrastructure for Agent Commerce &nbsp;·&nbsp;
+        
         Powered by Hedera HCS · HTS · OpenClaw Agents
         <span className="ml-4 flex items-center gap-1 justify-center mt-1 text-sky-700">
           <ChevronRight className="w-3 h-3" />
