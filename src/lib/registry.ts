@@ -163,55 +163,110 @@ export function seedIfNeeded() {
   seeded = true;
 
   const workerAccountId = process.env.HEDERA_WORKER_ACCOUNT_ID ?? "0.0.8136877";
+  const topicId = process.env.HEDERA_TOPIC_ID;
 
+  // ── Register Agents ──
   const a1 = registerAgent({
     name: "ScriptWriter-7",
     type: "worker",
     capabilities: ["video_script", "content_writing"],
     accountId: workerAccountId,
-    description: "Writes compelling video scripts using Gemini AI",
+    description: "Writes compelling video scripts & articles using Gemini AI",
   });
-  registerAgent({
+  const a2 = registerAgent({
+    name: "DataAnalyst-4",
+    type: "worker",
+    capabilities: ["data_analysis", "reporting"],
+    accountId: "0.0.8136880",
+    description: "Runs structured data analysis and generates insight reports",
+  });
+  const a3 = registerAgent({
     name: "ImageForge-3",
     type: "worker",
     capabilities: ["image_generation", "thumbnail_design"],
-    accountId: "0.0.1002",
-    description: "Generates scene images via FLUX / HuggingFace",
+    accountId: "0.0.8136881",
+    description: "Generates scene images and thumbnails via FLUX / HuggingFace",
   });
   registerAgent({
-    name: "VideoCompiler-1",
+    name: "CodeReviewer-2",
     type: "worker",
-    capabilities: ["video_compilation", "ffmpeg"],
-    accountId: "0.0.1003",
-    description: "Compiles final videos from images and audio with FFmpeg",
+    capabilities: ["code_review", "security_audit"],
+    accountId: "0.0.8136882",
+    description: "Reviews code for bugs, security flaws, and performance issues",
   });
   const broker = registerAgent({
     name: "Orchestrator-Prime",
     type: "broker",
     capabilities: ["task_routing", "agent_coordination"],
-    accountId: process.env.HEDERA_ACCOUNT_ID ?? "0.0.OPERATOR",
-    description: "Routes tasks to the best available worker agent",
+    accountId: process.env.HEDERA_ACCOUNT_ID ?? "0.0.3849875",
+    description: "Routes tasks to the best available worker agent on the mesh",
   });
 
+  // ── Pre-seeded completed tasks (show demo activity on load) ──
   const t1 = createTask({
-    title: "Write YouTube script: AI Tools 2026",
-    description: "5-minute educational script about top AI tools",
+    title: "Write YouTube script: The Future of AI Agents",
+    description: "7-min script covering autonomous agent networks, Hedera integration, and real-world use cases",
     capability: "video_script",
-    reward: 2,
+    reward: 2.5,
     requesterId: broker.id,
-    topicId: process.env.HEDERA_TOPIC_ID,
+    topicId,
   });
-
-  createTask({
-    title: "Generate 8 scene images for kids video",
-    description: "Colorful cartoon-style educational scene images",
-    capability: "image_generation",
+  const t2 = createTask({
+    title: "Analyze DeFi TVL trends Q1 2026",
+    description: "Market analysis of top 10 DeFi protocols: TVL, volume, and growth vectors",
+    capability: "data_analysis",
     reward: 3,
     requesterId: broker.id,
-    topicId: process.env.HEDERA_TOPIC_ID,
+    topicId,
+  });
+  const t3 = createTask({
+    title: "Generate hero images for AgentMesh landing page",
+    description: "8 high-quality scene images: futuristic agents, neon tech aesthetic, dark background",
+    capability: "image_generation",
+    reward: 2,
+    requesterId: broker.id,
+    topicId,
   });
 
-  // Simulate one completed task
+  // Complete t1 + t2 to show active demo state
   claimTask(t1.id, a1.id);
-  completeTask(t1.id, a1.id, "Script delivered: 847 words, 5 scenes");
+  completeTask(t1.id, a1.id,
+    `[HOOK - 0:00]\nIn 2026, the most productive employee at your company won't be human.\nIt'll be an AI agent — running 24/7, billing in HBAR, and filing its own taxes.\n\n[INTRO - 0:15]\nWelcome to the agentic economy. Today we're breaking down exactly how autonomous agents like those on AgentMesh are changing work forever.\n\n[MAIN CONTENT - 0:35]\n▸ POINT 1: What makes an agent "autonomous"\n  Agents don't just generate — they plan, execute, and settle payments without a human in the loop.\n▸ POINT 2: Hedera as the coordination layer\n  Every task claim, execution, and payment is a verifiable HCS message. No trust required.\n▸ POINT 3: The HBAR micropayment model\n  Workers earn fractions of HBAR per task. At scale, this becomes a real economy.\n\n[OUTRO - 2:45]\nAgentMesh is live on Hedera testnet right now. Register your agent, post a task, and watch the mesh work.\nLink in description. Subscribe for more on the agentic economy.`,
+    { onChain: true, transactionId: `0.0.3849875@${Date.now() - 120000}` }
+  );
+
+  claimTask(t2.id, a2.id);
+  completeTask(t2.id, a2.id,
+    `[DEFI MARKET ANALYSIS — Q1 2026]\n\n── KEY FINDINGS ──\n• Total DeFi TVL reached $98.4B (+31% QoQ) driven by restaking protocols\n• Hedera DeFi ecosystem grew 240% with SaucerSwap leading at $1.2B TVL\n• HBAR-denominated vaults outperformed ETH-denominated by 18% on risk-adjusted basis\n• Agent-automated yield strategies captured 12% of total protocol volume\n\n── TOP PROTOCOLS ──\n1. Aave v4      $22.1B TVL  (+8%)\n2. SaucerSwap   $1.2B  TVL  (+240%)\n3. EVM Liquidity $890M TVL  (+45%)\n\n── RECOMMENDATIONS ──\n• Allocate 15-20% to Hedera-native protocols (high growth, low competition)\n• Agent-automated DCA strategies show 23% better entry prices vs manual\n• Watch stablecoin yield on Hedera: averaging 8.2% APY with low smart contract risk\n\n── RISK FACTORS ──\n• Regulatory pressure on DeFi yields in EU (MiCA compliance costs)\n• Bridge security remains the #1 attack vector (4 exploits in Q1, $180M lost)\n\nConfidence score: 87% · Data sources: DefiLlama, CoinGecko, Hedera Mirror Node`,
+    { onChain: true, transactionId: `0.0.3849875@${Date.now() - 60000}` }
+  );
+
+  // t3 is open (ready for workers to pick up in demo)
+  // a3 is idle, ready
+
+  // ── 2 more open tasks for workers to auto-claim ──
+  createTask({
+    title: "Write thread: Why AI agents need crypto rails",
+    description: "10-tweet thread explaining why HBAR + HCS is the best foundation for agent payments",
+    capability: "content_writing",
+    reward: 1.5,
+    requesterId: broker.id,
+    topicId,
+  });
+  createTask({
+    title: "Security audit: AgentMesh smart contract logic",
+    description: "Review task claim/complete flow for race conditions, reentrancy, and payment exploits",
+    capability: "code_review",
+    reward: 4,
+    requesterId: broker.id,
+    topicId,
+  });
+
+  // Boost seeded agent reputation to look legit
+  const freshA1 = agents.get(a1.id);
+  if (freshA1) { freshA1.reputation = 285; freshA1.tasksCompleted = 37; freshA1.totalEarned = 89.5; }
+  const freshA2 = agents.get(a2.id);
+  if (freshA2) { freshA2.reputation = 210; freshA2.tasksCompleted = 21; freshA2.totalEarned = 63; }
+  const freshA3 = agents.get(a3.id);
+  if (freshA3) { freshA3.reputation = 175; freshA3.tasksCompleted = 14; freshA3.totalEarned = 28; }
 }

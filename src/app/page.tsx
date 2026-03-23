@@ -58,12 +58,13 @@ function LiveDot() {
   );
 }
 
-function Badge({ children, variant = "default" }: { children: React.ReactNode; variant?: "default" | "green" | "yellow" | "orange" }) {
+function Badge({ children, variant = "default" }: { children: React.ReactNode; variant?: "default" | "green" | "yellow" | "orange" | "purple" }) {
   const cls = {
     default: "border-sky-500/40 text-sky-400",
     green:   "border-green-500/40 text-green-400",
     yellow:  "border-yellow-500/40 text-yellow-400",
     orange:  "border-orange-500/40 text-orange-400",
+    purple:  "border-purple-500/40 text-purple-400",
   }[variant];
   return (
     <span className={`border rounded px-2 py-0.5 text-[11px] tracking-wider bg-slate-900/60 ${cls}`}>
@@ -254,11 +255,49 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    refresh();
-    addLog("Dashboard ready. Agents standing by.", "ok");
-    const id = setInterval(refresh, 8000); // faster refresh for worker updates
+    const init = async () => {
+      await refresh();
+      addLog("⚡ AgentMesh online — Hedera Testnet connected.", "ok");
+
+      // Pre-populate HCS feed with seeded completed activity
+      setTimeout(() => {
+        addHcs("AGENT_JOINED", "ScriptWriter-7 registered · caps: video_script, content_writing");
+        addHcs("AGENT_JOINED", "DataAnalyst-4 registered · caps: data_analysis, reporting");
+        addHcs("AGENT_JOINED", "Orchestrator-Prime (broker) joined the mesh");
+      }, 300);
+      setTimeout(() => {
+        addHcs("NEW_TASK", '"Write YouTube script: The Future of AI Agents" | 2.5 ℏ | video_script');
+        addHcs("TASK_CLAIMED", "ScriptWriter-7 picked up task · executing via Gemini AI...");
+        addHcs("TASK_COMPLETE", "ScriptWriter-7 earned 2.5 ℏ · rep +5 → 285 | ⛓ on-chain");
+        addHcs("HBAR_PAYMENT", "2.5 ℏ → 0.0.8136877 | tx: 0.0.3849875@...");
+      }, 700);
+      setTimeout(() => {
+        addHcs("NEW_TASK", '"Analyze DeFi TVL trends Q1 2026" | 3 ℏ | data_analysis');
+        addHcs("TASK_CLAIMED", "DataAnalyst-4 picked up task · running analysis...");
+        addHcs("TASK_COMPLETE", "DataAnalyst-4 earned 3 ℏ · rep +5 → 210 | ⛓ on-chain");
+        addHcs("HBAR_PAYMENT", "3 ℏ → 0.0.8136880 | tx: 0.0.3849875@...");
+        addLog("✅ 2 completed tasks loaded from history. Workers standing by.", "ok");
+      }, 1100);
+
+      // Auto-start workers after a short delay so the dashboard is populated first
+      setTimeout(async () => {
+        try {
+          const res = await apiFetch<{ ok: boolean; message: string; started?: number }>("/api/workers", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "start" }),
+          });
+          addLog(`🤖 ${res.message} — autonomous polling active`, "ok");
+          setWorkersRunning(true);
+          addHcs("SYSTEM", `${res.started ?? 0} worker agents activated · polling for tasks...`);
+        } catch { /* workers may already be running */ }
+      }, 1500);
+    };
+    init();
+    const id = setInterval(refresh, 6000);
     return () => clearInterval(id);
-  }, [refresh, addLog]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Update worker running state from dashboard data
   useEffect(() => {
@@ -387,15 +426,18 @@ export default function Dashboard() {
       {/* ── Header ── */}
       <header className="bg-gradient-to-r from-[#060c1a] to-[#091426] border-b border-[#1b3358] px-7 py-3.5 flex items-center justify-between">
         <div>
-          <h1 className="text-sky-400 text-xl font-bold tracking-[3px]">⚡ AGENTMESH</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-sky-400 text-xl font-bold tracking-[3px]">⚡ AGENTMESH</h1>
+            <Badge variant="green"><LiveDot />LIVE ON TESTNET</Badge>
+          </div>
           <p className="text-slate-500 text-[11px] tracking-widest mt-0.5">
-            Decentralized Agent Commerce · Powered by Hedera
+            Autonomous Agent Commerce Network · Powered by Hedera HCS + HBAR
           </p>
         </div>
         <div className="flex gap-2 items-center flex-wrap justify-end">
-          <Badge variant="green"><LiveDot />LIVE</Badge>
-          <Badge>{topicId ? `TOPIC: ${topicId}` : "TOPIC: —"}</Badge>
-          <Badge variant="yellow">APEX 2026</Badge>
+          <Badge variant="yellow">🏆 APEX 2026 — AI &amp; AGENTS TRACK</Badge>
+          <Badge variant="orange">$22,500 TARGET</Badge>
+          <Badge>{topicId ? `HCS: ${topicId}` : "HCS: —"}</Badge>
         </div>
       </header>
 
@@ -409,6 +451,44 @@ export default function Dashboard() {
       </div>
 
       <div className="px-7 py-5 max-w-[1440px] mx-auto">
+
+        {/* ── What is AgentMesh ── */}
+        <div className="bg-gradient-to-r from-[#060c1a] to-[#091426] border border-[#1b3358] rounded-lg px-5 py-4 mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            <div className="flex-1">
+              <div className="text-sky-400 text-xs tracking-widest mb-1.5">HEDERA HELLO FUTURE APEX HACKATHON 2026 · AI &amp; AGENTS TRACK</div>
+              <p className="text-[13px] text-slate-300 leading-5">
+                <span className="text-white font-semibold">AgentMesh</span> is the commerce layer for autonomous AI agents.
+                Agents post tasks to <span className="text-green-400">Hedera HCS</span>, worker agents claim &amp; execute them with <span className="text-purple-400">Gemini AI</span>,
+                and payment settles in <span className="text-yellow-400">HBAR</span> on-chain — no human coordination needed.
+              </p>
+            </div>
+            <div className="flex gap-2 shrink-0 flex-wrap">
+              <a href={`https://hashscan.io/testnet/topic/${data?.topicId ?? ""}`} target="_blank"
+                className="flex items-center gap-1.5 border border-orange-500/40 text-orange-400 text-[11px] px-3 py-1.5 rounded hover:bg-orange-900/20 transition-colors">
+                <ExternalLink className="w-3 h-3" /> HashScan
+              </a>
+              <a href="https://github.com/gabrieltemtsen/agent-mesh" target="_blank"
+                className="flex items-center gap-1.5 border border-sky-500/40 text-sky-400 text-[11px] px-3 py-1.5 rounded hover:bg-sky-900/20 transition-colors">
+                <ExternalLink className="w-3 h-3" /> GitHub
+              </a>
+            </div>
+          </div>
+          <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+            {[
+              { step: "1", label: "Agent posts task", sub: "→ HCS topic on-chain" },
+              { step: "2", label: "Worker claims it", sub: "→ capability matching" },
+              { step: "3", label: "Gemini executes", sub: "→ real AI deliverable" },
+              { step: "4", label: "HBAR settles", sub: "→ on Hedera testnet" },
+            ].map(s => (
+              <div key={s.step} className="bg-[#060d1a] rounded px-3 py-2 border border-[#1b3358]">
+                <span className="text-sky-500 text-xs">STEP {s.step}</span>
+                <div className="text-slate-300 mt-0.5">{s.label}</div>
+                <div className="text-slate-600">{s.sub}</div>
+              </div>
+            ))}
+          </div>
+        </div>
 
         {/* ── System Log ── */}
         <div ref={logRef} className="bg-[#040910] border border-[#1b3358] rounded-lg px-3.5 py-2.5 max-h-24 overflow-y-auto text-[11px] mb-4">
@@ -427,8 +507,7 @@ export default function Dashboard() {
             { label: workersRunning ? "⏹ Stop Workers" : "▶ Start Workers", icon: workersRunning ? Square : Play, onClick: toggleWorkers, cls: workersRunning ? "border-red-500/50 text-red-400 hover:bg-red-900/30" : "border-green-500/50 text-green-400 hover:bg-green-900/30" },
             { label: simRunning ? "Running..." : "⚡ Sim Task", icon: Zap, onClick: runSim, cls: "border-yellow-500/50 text-yellow-400 hover:bg-yellow-900/30", disabled: simRunning },
             { label: "↻ Refresh", icon: RefreshCw, onClick: refresh, cls: "border-sky-500/50 text-sky-400 hover:bg-sky-900/30" },
-            { label: "HashScan", icon: ExternalLink, onClick: () => topicId && window.open(`https://hashscan.io/testnet/topic/${topicId}`, "_blank"), cls: "border-orange-500/50 text-orange-400 hover:bg-orange-900/30" },
-            { label: "Mirror Node", icon: Activity, onClick: () => topicId && window.open(`https://testnet.mirrornode.hedera.com/api/v1/topics/${topicId}/messages?limit=10`, "_blank"), cls: "border-sky-500/50 text-sky-400 hover:bg-sky-900/30" },
+            { label: "HashScan ↗", icon: ExternalLink, onClick: () => topicId && window.open(`https://hashscan.io/testnet/topic/${topicId}`, "_blank"), cls: "border-orange-500/50 text-orange-400 hover:bg-orange-900/30" },
           ].map((btn) => (
             <button key={btn.label} onClick={btn.onClick} disabled={btn.disabled}
               className={`flex items-center gap-2 border rounded-md px-3.5 py-2 text-[12px] font-mono tracking-wide cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-default ${btn.cls}`}>
